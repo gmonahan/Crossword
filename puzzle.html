@@ -1,0 +1,560 @@
+<html>
+    <head>
+        <style>
+            .tooltip {
+                position: relative;
+                display: inline-block;
+                border-bottom: 1px dotted black;
+            }
+            .tooltip .tooltiptext {
+                visibility: hidden;
+                position: absolute;
+                content: " ";
+                width: 200px;
+                background-color: #eeeeee;
+                color: black;
+                top: -5px;
+                left: 105%;
+                font-family: Arial;
+                font-size: 18px;
+                text-align: center;
+                padding: 10px 0;
+                border-radius: 6px;
+                border-width: 1px;
+                border-style: solid;
+                border-color: black black black black;
+                z-index: 100;
+            }
+            .tooltip:hover .tooltiptext {
+                visibility: visible;
+            }
+            mark {
+                background-color: #cccccc;
+                color: black;
+            }
+            
+        </style>
+    </head>
+    <body>
+        
+        <canvas onmousedown="changeSquare(event)"></canvas>
+        <div class="tooltip" style = "position:absolute; left:800px; top:15px;" id="mode">
+            <select name="colors" id="colors">
+                <option value="black">Black</option>
+                <option value="white">White</option>
+                <option value="#eeeeee">Letters</option>
+            </select>
+            <span class="tooltiptext">Use this control to determine if clicking on the grid produces a black or white square, or allows a letter.</span>
+        </div>
+        <br>
+        <div style = "position:absolute; left:800px; top:50px;" id="panel">
+            <details open id="statistics">
+                <summary>Statistics</summary>
+                <div class="tooltip" id="acrossvalues"></div>
+                <br><br>
+                <div class="tooltip" id="downvalues"></div>
+            </details>
+            <details id="Clues">
+                <summary>Clues</summary>
+                <div class="tooltip" id="clues"><textarea rows=40 cols=60 id="cluesPanel"></textarea>
+                    <span class='tooltiptext'>Enter your clues here. Don't forget to save them using the button in bottom left corner.</span>
+                </div>
+            </details>
+            <details id="Score">
+                <summary>Score</summary>
+                <div class="tooltip" id="clues"><div id="scorePanel"></div>
+                    <span class='tooltiptext'>We'll show any puzzle issues here after clicking the Check button in bottom left corner.</span>
+                </div>
+            </details>
+        </div>
+        
+        <script type="text/javascript">//<![CDATA[
+            
+            window.addEventListener('keydown', function (e) {
+                key = e.key;
+            }, false);
+            
+            var ctx = document.querySelector('canvas').getContext('2d');
+            
+            var size = getParameterByName('size');
+            if (!size) {
+                size = 15;
+            }
+            if (size == 15) {
+                ctx.canvas.width = ctx.canvas.height = 761;
+                margin = 10;
+                square = 50;
+                offset0 = 10;
+                offset1 = 14;
+                offset2 = 10;
+                offset3 = 27;
+                offset4 = 45;
+                offset5 = 15;
+                offset6 = 25;
+                letter_font = '24px Arial';
+            } else {
+                ctx.canvas.width = ctx.canvas.height = 770;
+                margin = 8;
+                square = 38;
+                offset0 = 9;
+                offset1 = 19;
+                offset2 = 9;
+                offset3 = 23;
+                offset4 = 43;
+                offset5 = 13;
+                offset6 = 23;
+                letter_font = '20px Arial'
+            }
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = "black";
+            drawGrid(ctx,square);
+            
+            var key;
+            var matrix = [];
+            for (let i = 0; i< size; i++) {
+                for(let j = 0; j< size; j++) {
+                    matrix[i] = [];
+                }
+            }
+            for (let i = 0; i< size; i++) {
+                for(let j = 0; j< size; j++) {
+                    matrix[i][j] = '?';
+                }
+            }
+            drawHdata(size);
+            drawVdata(size);
+            
+            function drawGrid(ctx,size){
+                var w = ctx.canvas.width,
+                h = ctx.canvas.height;
+                ctx.beginPath();
+                for (var x=margin;x<=w;x+=size){
+                    ctx.moveTo(x,margin);
+                    ctx.lineTo(x,h);
+                }
+                for (var y=margin;y<=h;y+=size){
+                    ctx.moveTo(margin,y);
+                    ctx.lineTo(w,y);
+                }
+                ctx.stroke();
+            }
+            
+            function drawHdata(size){
+                var across;
+                var digits;
+                var result = "<a class=tooltip></a><span class='tooltiptext'>This displays the word segments in each row and provides a hyperlink to see which words can be made with the letter positions.</span><br><font family=Arial style='font-size: 18px;' color=black>";
+                for (let i = 0; i < size; i++) {
+                    var word_start = 0;
+                    var word_end = 0;
+                    var in_word = 0;
+                    for (let j = 0; j < size; j++) {
+                        if (matrix[i][j] != 1) {
+                            if (!in_word) {
+                                in_word = 1;
+                                word_start = j;
+                            }
+                        } else {
+                            if (in_word) {
+                                in_word = 0;
+                                word_end = j-1;
+                                across = word_start + 1;
+                                digits = word_end - word_start + 1;
+                                search = "";
+                                for (let k = word_start; k <= word_end; k++) {
+                                    search += matrix[i][k];
+                                }
+                                search2 = search;
+                                if (search2.includes('?')) {
+                                    search2 = "<mark>" + search2 + "</mark>";
+                                }
+                                result += search2;
+                                link = ' <a target=_new href=\"words.html?sp=' + search + '&max=15\" onClick=\"return popup(this, \'notes\')\"><img src="find.jpeg" style="width:20px;height:20px;"></a>';
+                                result += link + ", ";
+                            }
+                        }
+                    }
+                    if (in_word) {
+                        across = word_start + 1;
+                        digits = size - word_start;
+                        search = "";
+                        for (let k = word_start; k < size; k++) {
+                            search += matrix[i][k];
+                        }
+                        search2 = search;
+                        if (search2.includes('?')) {
+                            search2 = "<mark>" + search2 + "</mark>";
+                        }
+                        result += search2;
+                        result += ' <a target=_new href=\"words.html?sp=' + search + '&max=15\" onClick=\"return popup(this, \'notes\')\"><img src="find.jpeg" style="width:20px;height:20px;"></a>';
+                    }
+                    result += "<br>";
+                }
+                result += "</font>";
+                document.getElementById("acrossvalues").innerHTML=result;
+            }
+            
+            function drawVdata(size){
+                var down;
+                var digits;
+                var result = "<a class=tooltip></a><span class='tooltiptext'>This displays the word segments in each column and provides a hyperlink to see which words can be made with the letter positions.</span><br><font family=Arial style='font-size: 18px;' color=black>";
+                for (let j = 0; j< size; j++) {
+                    var word_start = 0;
+                    var word_end = 0;
+                    var in_word = 0;
+                    for (let i = 0; i< size; i++) {
+                        if (matrix[i][j] != 1) {
+                            if (!in_word) {
+                                in_word = 1;
+                                word_start = i;
+                            }
+                        } else {
+                            if (in_word) {
+                                in_word = 0;
+                                word_end = i-1;
+                                down = word_start + 1;
+                                digits = word_end - word_start + 1;
+                                search = "";
+                                for (let k = word_start; k <= word_end; k++) {
+                                    search += matrix[k][j];
+                                }
+                                search2 = search;
+                                if (search2.includes('?')) {
+                                    search2 = "<mark>" + search2 + "</mark>";
+                                }
+                                result += search2;
+                                link = ' <a target=_new href=\"words.html?sp=' + search + '&max=15\" onClick=\"return popup(this, \'notes\')\"><img src="find.jpeg" style="width:20px;height:20px;"></a>';
+                                result += link + ", ";
+                            }
+                        }
+                    }
+                    if (in_word) {
+                        down = word_start + 1;
+                        digits = size - word_start;
+                        search = "";
+                        for (let k = word_start; k < size; k++) {
+                            search += matrix[k][j];
+                        }
+                        search2 = search;
+                        if (search2.includes('?')) {
+                            search2 = "<mark>" + search2 + "</mark>";
+                        }
+                        result += search2;
+                        result += ' <a target=_new href=\"words.html?sp=' + search + '&max=15\" onClick=\"return popup(this, \'notes\')\"><img src="find.jpeg" style="width:20px;height:20px;"></a>';
+                    }
+                    result += "<br>";
+                }
+                result += "</font>";
+                document.getElementById("downvalues").innerHTML=result;
+            }
+            
+            function changeSquare(e) {
+                x=e.clientX;
+                y=e.clientY;
+                A=Math.round(x/square)-1;
+                B=Math.round(y/square)-1;
+                
+                var element = document.getElementById("colors");
+                var value = element.value;
+                ctx.fillStyle = value;
+                ctx.fillRect(A*square+offset0, B*square+offset0, square, square);
+                ctx.stroke();
+                
+                if (value == "black") {
+                    matrix[B][A] = 1;
+                    matrix[offset1-B][offset1-A] = 1;
+                    ctx.fillRect((offset1-A)*square+offset0, (offset1-B)*square+offset2, square, square);
+                    ctx.stroke();
+                } else if (value == "white") {
+                    matrix[B][A] = '?';
+                    if (matrix[offset1-B][offset1-A] == 1) {
+                        matrix[offset1-B][offset1-A] = '?';
+                        ctx.fillRect((offset1-A)*square+offset0, (offset1-B)*square+offset2, square, square);
+                        ctx.stroke();
+                    }
+                } else {
+                    matrix[B][A] = key.toUpperCase();
+                    ctx.fillStyle='black';
+                    ctx.font = letter_font;
+                    ctx.fillText(key.toUpperCase(),A*square+offset3,B*square+offset4);
+                }
+                ctx.stroke();
+                drawHdata(size);
+                drawVdata(size);
+            }
+            
+            function loadSquares() {
+                for (let i = 0; i< size; i++) {
+                    for(let j = 0; j< size; j++) {
+                        if (matrix[i][j] == 1) {
+                            ctx.fillStyle = "black";
+                        }
+                        else if (matrix[i][j] == '?') {
+                            ctx.fillStyle = "white";
+                        }
+                        else {
+                            ctx.fillStyle = "#eeeeee";
+                        }
+                        ctx.fillRect(j*square+offset2, i*square+offset2, square, square);
+                        ctx.stroke();
+                        if (ctx.fillStyle == "#eeeeee") {
+                            ctx.fillStyle='black';
+                            ctx.font = letter_font;
+                            ctx.fillText(matrix[i][j],j*square+offset3,i*square+offset4);
+                        }
+                    }
+                }
+            }
+            
+            function popup(mylink, windowname) {
+                if (! window.focus)
+                return true;
+                var href;
+                if (typeof(mylink) == 'string')
+                href=mylink;
+                else
+                href=mylink.href;
+                window.open(href, windowname,'width=80,height=400,top=300,left=1100,scrollbars=0,toolbar=0,menubar=0,status=0,location=0,resizable=0');
+                return false;
+            }
+            
+            function saveConfig(name, type) {
+                var a = document.createElement("a");
+                document.body.appendChild(a);
+                a.style = "display: none";
+                var file = new Blob([matrix], {type: type});
+                a.href = URL.createObjectURL(file);
+                a.download = name;
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+            }
+            
+            function saveClues(name, type) {
+                var a = document.createElement("a");
+                document.body.appendChild(a);
+                a.style = "display: none";
+                var v = document.getElementById("cluesPanel").value;
+                var file = new Blob([v], {type: type});
+                a.href = URL.createObjectURL(file);
+                a.download = name;
+                a.click();
+                window.URL.revokeObjectURL(a.href);
+            }
+            
+            function loadConfig(){
+                var v = document.getElementById("configTextarea").value;
+                var txtArray=v.split(',');
+                var i=0;
+                var j=0;
+                for (var k=0; k < txtArray.length; k++) {
+                    matrix[i][j] = txtArray[k]
+                    j++;
+                    if (j == size) {
+                        j=0;
+                        i++;
+                    }
+                }
+                loadSquares();
+                drawNumbers();
+                drawHdata(size);
+                drawVdata(size);
+            }
+            
+            function loadClues(){
+                var v = document.getElementById("cluesTextarea").value;
+                var txtArray=v.split(',');
+                for (var k=0; k < txtArray.length; k++) {
+                    document.getElementById("cluesPanel").value += txtArray[k];
+                }
+            }
+            
+            async function getScore(search) {
+                var max = 1;
+                var url = 'https://api.datamuse.com/words?sp=' + search + '&max=' + max;
+                try {
+                    let res = await fetch(url);
+                    return await res.json();
+                } catch (error) {
+                    console.log(error);
+                }
+            }
+            
+            async function renderScore(search) {
+                let words = await getScore(search);
+                let html = '';
+                words.forEach(word => {
+                    let htmlSegment = `${word.word}`;
+                    html += htmlSegment.toUpperCase();;
+                });
+                if (html != search) {
+                    html = "<font color=red>" + search + " has no matches.</font>";
+                    document.getElementById("scorePanel").innerHTML += html + "<br>";
+                }
+            }
+            
+            function checkPuzzle() {
+                var across;
+                var down;
+                var word_start;
+                var word_end;
+                var in_word;
+                var result = "";
+                document.getElementById("scorePanel").innerHTML = "";
+                for (let i = 0; i < size; i++) {
+                    word_start = 0;
+                    word_end = 0;
+                    in_word = 0;
+                    for (let j = 0; j < size; j++) {
+                        if (matrix[i][j] != 1) {
+                            if (!in_word) {
+                                in_word = 1;
+                                word_start = j;
+                            }
+                        } else {
+                            if (in_word) {
+                                in_word = 0;
+                                word_end = j-1;
+                                across = word_start + 1;
+                                digits = word_end - word_start + 1;
+                                search = "";
+                                for (let k = word_start; k <= word_end; k++) {
+                                    search += matrix[i][k];
+                                }
+                                renderScore(search);
+                            }
+                        }
+                    }
+                    if (in_word) {
+                        across = word_start + 1;
+                        digits = size - word_start;
+                        search = "";
+                        for (let k = word_start; k < size; k++) {
+                            search += matrix[i][k];
+                        }
+                        renderScore(search);
+                    }
+                }
+                for (let j = 0; j< size; j++) {
+                    word_start = 0;
+                    word_end = 0;
+                    in_word = 0;
+                    for (let i = 0; i< size; i++) {
+                        if (matrix[i][j] != 1) {
+                            if (!in_word) {
+                                in_word = 1;
+                                word_start = i;
+                            }
+                        } else {
+                            if (in_word) {
+                                in_word = 0;
+                                word_end = i-1;
+                                down = word_start + 1;
+                                digits = word_end - word_start + 1;
+                                search = "";
+                                for (let k = word_start; k <= word_end; k++) {
+                                    search += matrix[k][j];
+                                }
+                                renderScore(search);
+                            }
+                        }
+                    }
+                    if (in_word) {
+                        down = word_start + 1;
+                        digits = size - word_start;
+                        search = "";
+                        for (let k = word_start; k < size; k++) {
+                            search += matrix[k][j];
+                        }
+                        renderScore(search);
+                    }
+                }
+            }
+            
+            function drawNumber(A,B,num) {
+                ctx.fillStyle='black';
+                ctx.font = '12px Arial';
+                ctx.fillText(num,(B)*square+offset5,(A)*square+offset6);
+            }
+            
+            function firstLetterAcross(i,j) {
+                var boundary = size -1;
+                if (matrix[i][j] == 1) {
+                    return false;
+                } else if (j == boundary) {
+                    return false;
+                } else if (matrix[i][j+1] == 1) {
+                    return false;
+                } else if (j == 0) {
+                    return true;
+                } else if (matrix[i][j-1] == 1) {
+                    return true;
+                }
+            }
+            
+            function firstLetterDown(i,j) {
+                var boundary = size -1;
+                if (matrix[i][j] == 1) {
+                    return false;
+                } else if (i == boundary) {
+                    return false;
+                } else if (matrix[i+1][j] == 1) {
+                    return false;
+                } else if (i == 0) {
+                    return true;
+                } else if (matrix[i-1][j] == 1) {
+                    return true;
+                }
+            }
+            
+            function drawNumbers() {
+                var counter = 1;
+                var hResult = "Across" + String.fromCharCode(13);
+                var vResult = "Down" + String.fromCharCode(13);
+                for (let i = 0; i< size; i++) {
+                    for(let j = 0; j< size; j++) {
+                        if (firstLetterAcross(i,j)) {
+                            drawNumber(i,j,counter);
+                            hResult += counter + String.fromCharCode(13);
+                            counter++;
+                        } else if (firstLetterDown(i,j)) {
+                            drawNumber(i,j,counter);
+                            vResult += counter + String.fromCharCode(13);
+                            counter++;
+                        }
+                    }
+                }
+                document.getElementById("cluesPanel").value = hResult + String.fromCharCode(13) + vResult;
+            }
+            
+            function getParameterByName(name, url = window.location.href) {
+                name = name.replace(/[\[\]]/g, '\\$&');
+                var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, ' '));
+            }
+            
+        </script>
+        <div style = "position:absolute; left:10px; top:790px;" id="controls">
+            <button style = "position:relative; left:10px; top:0px;" class=tooltip onclick="saveConfig('matrix.txt', 'text/plain')">Save Config
+                <span class="tooltiptext">Use this to save the current configuration.</span>
+            </button>
+            <button style = "position:relative; left:10px; top:0px;" class=tooltip onclick="loadConfig()">Load Config
+                <span class="tooltiptext">Use this to load the configuration pasted into the textarea below.</span>
+            </button>
+            <button style = "position:relative; left:25px; top:0px;" class=tooltip onclick="saveClues('clues.txt', 'text/plain')">Save Clues
+                <span class="tooltiptext">Use this to save the current clues.</span>
+            </button>
+            <button style = "position:relative; left:25px; top:0px;" class=tooltip onclick="loadClues()">Load Clues
+                <span class="tooltiptext">Use this to load the clues pasted into the textarea below.</span>
+            </button>
+            <button style = "position:relative; left:50px; top:0px;" class=tooltip onclick="checkPuzzle()">Check Puzzle
+                <span class="tooltiptext">Use this to check the puzzle's answers.</span>
+            </button>
+        </div>
+        <div style = "position:absolute; left:10px; top:820px;" id="textAreas">
+            <textarea style = "position:relative; left:10px; top:0px;" name="textarea" id="configTextarea"></textarea>
+            <textarea style = "position:relative; left:25px; top:0px;" name="textarea" id="cluesTextarea"></textarea>
+        </div>
+    </body>
+</html>
